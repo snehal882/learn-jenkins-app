@@ -2,48 +2,88 @@ pipeline {
     agent any
 
     stages {
-        stage('Checkout') {
-            steps {
-                // Checkout code from the repository
-                git url: 'https://github.com/your-repo/your-project.git', branch: 'main'
-                git config --global user.name snehal882
-            }
-        }
 
         stage('Build') {
+            agent {
+                docker {
+                    image 'node:18-alpine'
+                    reuseNode true
+                }
+            }
             steps {
-                // Build the project
-                sh 'mvn clean install'
+                sh '''
+                    ls -la
+                    node --version
+                    npm --version
+                    npm ci
+                    npm run build
+                    ls -la
+                '''
             }
         }
 
-        stage('Test') {
-            steps {
-                // Run tests
-                sh 'mvn test'
+        stage('Tests') {
+            parallel {
+                stage('Unit tests') {
+                    agent {
+                        docker {
+                            image 'node:18-alpine'
+                            reuseNode true
+                        }
+                    }
+
+                    steps {
+                        sh '''
+                            #test -f build/index.html
+                            npm test
+                        '''
+                    }
+                    post {
+                        always {
+                            junit 'jest-results/junit.xml'
+                        }
+                    }
+                }
+
+                stage('E2E') {
+                    agent {
+                        docker {
+                            image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
+                            reuseNode true
+                        }
+                    }
+
+                    steps {
+                        sh '''
+                            npm install serve
+                            node_modules/.bin/serve -s build &
+                            sleep 10
+                            npx playwright test  --reporter=html
+                        '''
+                    }
+
+                    post {
+                        always {
+                            publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, reportDir: 'playwright-report', reportFiles: 'index.html', reportName: 'Playwright HTML Report', reportTitles: '', useWrapperFileDirectly: true])
+                        }
+                    }
+                }
             }
         }
 
         stage('Deploy') {
-            steps {
-                // Deploy the application
-                sh 'scp target/your-app.jar user@your-server:/path/to/deploy'
+            agent {
+                docker {
+                    image 'node:18-alpine'
+                    reuseNode true
+                }
             }
-        }
-    }
-
-    post {
-        always {
-            // Clean up workspace
-            cleanWs()
-        }
-        success {
-            // Notify success
-            echo 'Build and deployment successful!'
-        }
-        failure {
-            // Notify failure
-            echo 'Build or deployment failed.'
+            steps {
+                sh '''
+                    npm install netlify-cli
+                    node_modules/.bin/netlify --version
+                '''
+            }
         }
     }
 }

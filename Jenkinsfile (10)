@@ -1,5 +1,10 @@
 pipeline {
     agent any
+    docker {    
+        label "${RUNNING_NODE}"
+        image "DockerImage"
+        args "--privileged -v /dev:/dev"
+    }
 
     stages {
 

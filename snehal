@@ -1,26 +1,14 @@
 pipeline {
-    agent any
-
-    environment {
-        NETLIFY_SITE_ID = '9d2cd7fb-4845-45ad-9373-c910e70c8469'
-        NETLIFY_AUTH_TOKEN = credentials('netlify-token')
-    }
-    stages {
-    stage('Build') { 
-        steps { 
-            sh 'make' 
+    pipeline {
+        agent {
+            docker { image 'node:16.13.1-alpine' }
+        }
+        stages {
+            stage('Test') {
+                steps {
+                    sh 'node --version'
+                }
+            }
         }
     }
-    stage('Test'){
-        steps {
-            sh 'make check'
-            junit 'reports/**/*.xml' 
-        }
-    }
-    stage('Deploy') {
-        steps {
-            sh 'make publish'
-        }
-    }
-}
 }

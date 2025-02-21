@@ -5,25 +5,22 @@ pipeline {
         NETLIFY_SITE_ID = '9d2cd7fb-4845-45ad-9373-c910e70c8469'
         NETLIFY_AUTH_TOKEN = credentials('netlify-token')
     }
-}
     stages {
-
-    stage('Build') {
-        agent {
-            docker {
-                image 'node:18-alpine'
-                reuseNode true
-            }
-        }
-        steps {
-            sh 
-                ls -la
-                node --version
-                npm --version
-                npm ci
-                npm run build
-                ls -la
-            
+    stage('Build') { 
+        steps { 
+            sh 'make' 
         }
     }
+    stage('Test'){
+        steps {
+            sh 'make check'
+            junit 'reports/**/*.xml' 
+        }
+    }
+    stage('Deploy') {
+        steps {
+            sh 'make publish'
+        }
+    }
+}
 }
